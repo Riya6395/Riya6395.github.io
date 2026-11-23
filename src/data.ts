@@ -95,7 +95,7 @@ export const data = {
   contact: {
     kicker: 'got an idea?',
     cta: "let's talk",
-    email: 'hello@yourname.com',
+    email: 'riyapal963993@gmail.com',
     copyLabel: 'copy email',
     copiedMessage: 'copied ✦ talk soon',
     socials: [
