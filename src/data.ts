@@ -1,7 +1,7 @@
 // Every word on the portfolio lives here. Edit this file only — the components just read it.
 // Voice (from the "Main Character" design system): lowercase, short, a bit cheeky. Glyphs ✦ ↗ → ● over emoji.
 
-// Files in /public: write them as `${base}name.png` so they work under the GitHub Pages sub-path.
+// Files in /public: write them as `${base}name.png` so they keep working if the site ever moves to a sub-path.
 const base = import.meta.env.BASE_URL
 
 export type Accent = 'lime' | 'pink' | 'lilac' | 'orange'
