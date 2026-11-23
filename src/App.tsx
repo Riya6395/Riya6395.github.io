@@ -47,6 +47,78 @@ function Letters({ text, start }: { text: string; start: number }) {
   return [...text].map((c, i) => <span key={i} className="ch" style={{ '--i': start + i } as CSSProperties}>{c}</span>)
 }
 
+// Bouncy balls under gravity that collide with each other and get shoved by the cursor
+function Physics() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const cv = ref.current!, ctx = cv.getContext('2d')!, host = cv.parentElement!
+    const css = getComputedStyle(cv)
+    const fills = ['--lime', '--pink', '--orange', '--lilac'].map(v => css.getPropertyValue(v).trim())
+    const stroke = css.getPropertyValue('--line').trim()
+    let w = 0, h = 0, raf = 0
+    const mouse = { x: -1e4, y: -1e4, vx: 0, vy: 0 }
+    const balls: { x: number; y: number; vx: number; vy: number; r: number; c: string }[] = []
+    const resize = () => {
+      const dpr = Math.min(devicePixelRatio || 1, 2)
+      w = host.clientWidth; h = host.clientHeight
+      cv.width = w * dpr; cv.height = h * dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      if (!balls.length) {
+        const n = w < 600 ? 9 : 16
+        for (let i = 0; i < n; i++) {
+          const r = 14 + Math.random() * (w < 600 ? 22 : 38)
+          balls.push({ x: r + Math.random() * (w - 2 * r), y: Math.random() * h * 0.6, vx: (Math.random() - 0.5) * 6, vy: 0, r, c: fills[i % fills.length] })
+        }
+      }
+    }
+    const step = () => {
+      for (const b of balls) {
+        b.vy += 0.35; b.vx *= 0.995; b.vy *= 0.995
+        const dx = b.x - mouse.x, dy = b.y - mouse.y, dist = Math.hypot(dx, dy), reach = b.r + 60
+        if (dist < reach && dist > 0) { // cursor pushes away, plus a bit of its own momentum
+          const f = (reach - dist) / reach
+          b.vx += (dx / dist) * f * 3 + mouse.vx * f * 0.3
+          b.vy += (dy / dist) * f * 3 + mouse.vy * f * 0.3
+        }
+        b.x += b.vx; b.y += b.vy
+        if (b.x < b.r) { b.x = b.r; b.vx *= -0.8 } else if (b.x > w - b.r) { b.x = w - b.r; b.vx *= -0.8 }
+        if (b.y > h - b.r) { b.y = h - b.r; b.vy *= -0.7; b.vx *= 0.98 } else if (b.y < b.r) { b.y = b.r; b.vy *= -0.7 }
+      }
+      for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], b = balls[j], dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), min = a.r + b.r
+        if (dist >= min || dist === 0) continue
+        const nx = dx / dist, ny = dy / dist, ma = a.r * a.r, mb = b.r * b.r, push = (min - dist) / (ma + mb)
+        a.x -= nx * push * mb; a.y -= ny * push * mb; b.x += nx * push * ma; b.y += ny * push * ma
+        const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny
+        if (rel < 0) { // elastic-ish impulse weighted by area as mass
+          const imp = (-1.8 * rel) / (1 / ma + 1 / mb)
+          a.vx -= (imp / ma) * nx; a.vy -= (imp / ma) * ny; b.vx += (imp / mb) * nx; b.vy += (imp / mb) * ny
+        }
+      }
+      mouse.vx *= 0.8; mouse.vy *= 0.8
+    }
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h)
+      ctx.lineWidth = 2.5; ctx.strokeStyle = stroke
+      for (const b of balls) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fillStyle = b.c; ctx.fill(); ctx.stroke() }
+    }
+    const loop = () => { step(); draw(); raf = requestAnimationFrame(loop) }
+    const move = (e: PointerEvent) => {
+      const r = host.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top
+      if (mouse.x > -1e3) { mouse.vx = x - mouse.x; mouse.vy = y - mouse.y }
+      mouse.x = x; mouse.y = y
+    }
+    const leave = () => { mouse.x = mouse.y = -1e4 }
+    resize()
+    const ro = new ResizeObserver(resize); ro.observe(host)
+    host.addEventListener('pointermove', move); host.addEventListener('pointerleave', leave)
+    if (reduce) { for (let i = 0; i < 400; i++) step(); draw() } // settle once, then stay still
+    else loop()
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); host.removeEventListener('pointermove', move); host.removeEventListener('pointerleave', leave) }
+  }, [])
+  return <canvas ref={ref} className="physics" aria-hidden="true" />
+}
+
 function Hero() {
   const h = data.hero
   const [k, setK] = useState(0)
@@ -57,6 +129,7 @@ function Hero() {
   }, [h.roles.length])
   return (
     <header className="hero" id="top">
+      <Physics />
       <div className="badge" aria-hidden="true">
         <svg viewBox="0 0 120 120"><defs><path id="pc" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0" /></defs><text><textPath href="#pc">{h.badge}</textPath></text></svg>
         <span className="core">↓</span>
