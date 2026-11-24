@@ -52,7 +52,7 @@ export const data = {
   // When ready: put the PDF at public/resume.pdf and set url: `${base}resume.pdf`.
   resume: {
     label: 'resume ↗',
-    url: '',
+    url: `${base}resume.pdf`,
     soon: 'resume dropping soon ✦ check back',
   },
 
